@@ -12,8 +12,8 @@ static void default_deny(struct kunit *test)
  struct kila_profile p = { .uid = TEST_UID, .permission = KILA_DENY };
  KUNIT_ASSERT_EQ(test, kila_profile_set(&p, false), 0);
  mutex_lock(&kila_lock);
- KUNIT_EXPECT_PTR_EQ(test, kila_authorized_locked(TEST_UID), NULL);
- KUNIT_EXPECT_PTR_EQ(test, kila_authorized_locked(UNKNOWN_UID), NULL);
+ KUNIT_EXPECT_FALSE(test, kila_authorized_locked(TEST_UID) != NULL);
+ KUNIT_EXPECT_FALSE(test, kila_authorized_locked(UNKNOWN_UID) != NULL);
  mutex_unlock(&kila_lock);
 }
 
@@ -27,12 +27,12 @@ static void allow_then_revoke(struct kunit *test)
  KUNIT_ASSERT_EQ(test, kila_profile_get(TEST_UID, &out), 0);
  KUNIT_EXPECT_EQ(test, out.capabilities, p.capabilities);
  mutex_lock(&kila_lock);
- KUNIT_EXPECT_NOT_NULL(test, kila_authorized_locked(TEST_UID));
+ KUNIT_EXPECT_TRUE(test, kila_authorized_locked(TEST_UID) != NULL);
  mutex_unlock(&kila_lock);
  p.permission = KILA_DENY;
  KUNIT_ASSERT_EQ(test, kila_profile_set(&p, true), 0);
  mutex_lock(&kila_lock);
- KUNIT_EXPECT_PTR_EQ(test, kila_authorized_locked(TEST_UID), NULL);
+ KUNIT_EXPECT_FALSE(test, kila_authorized_locked(TEST_UID) != NULL);
  mutex_unlock(&kila_lock);
  KUNIT_ASSERT_EQ(test, kila_profile_get(TEST_UID, &out), 0);
  KUNIT_EXPECT_EQ(test, out.capabilities, p.capabilities);
@@ -44,12 +44,12 @@ static void once_exhaustion(struct kunit *test)
  KUNIT_ASSERT_EQ(test, kila_profile_set(&p, false), 0);
  mutex_lock(&kila_lock);
  active = kila_authorized_locked(TEST_UID);
- KUNIT_EXPECT_NOT_NULL(test, active);
+ KUNIT_EXPECT_TRUE(test, active != NULL);
  if (active) {
   KUNIT_EXPECT_EQ(test, active->grants_remaining, 1U);
   active->grants_remaining = 0;
  }
- KUNIT_EXPECT_PTR_EQ(test, kila_authorized_locked(TEST_UID), NULL);
+ KUNIT_EXPECT_FALSE(test, kila_authorized_locked(TEST_UID) != NULL);
  mutex_unlock(&kila_lock);
  p.permission = KILA_DENY;
  KUNIT_EXPECT_EQ(test, kila_profile_set(&p, false), 0);

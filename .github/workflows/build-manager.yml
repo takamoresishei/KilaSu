@@ -93,7 +93,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            cd manager && ./gradlew --no-daemon connectedDebugAndroidTest
+            cd manager && ./gradlew --no-daemon -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true connectedDebugAndroidTest
             adb pull /sdcard/Android/data/io.github.kilasu.manager/files/manager-home.png manager-home.png
       - uses: actions/upload-artifact@v4
         with:

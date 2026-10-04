@@ -7,12 +7,13 @@ import androidx.test.uiautomator.UiDevice
 import java.io.File
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertTrue
 class HomeScreenshotTest {
  @get:Rule val compose = createAndroidComposeRule<MainActivity>()
  @Test fun realDisconnectedState() {
   compose.waitUntil(15000) { compose.onAllNodesWithText("Not Installed").fetchSemanticsNodes().isNotEmpty() }
   compose.onNodeWithText("Not Installed").assertIsDisplayed()
   val instrumentation = InstrumentationRegistry.getInstrumentation()
-  UiDevice.getInstance(instrumentation).takeScreenshot(File(instrumentation.targetContext.getExternalFilesDir(null), "manager-home.png"))
+  assertTrue("Screenshot capture failed", UiDevice.getInstance(instrumentation).takeScreenshot(File(instrumentation.targetContext.getExternalFilesDir(null), "manager-home.png")))
  }
 }
