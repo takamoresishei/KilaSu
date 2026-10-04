@@ -23,12 +23,15 @@ jobs:
         run: |
           export PATH="/usr/lib/llvm-14/bin:$PATH"
           make -C ack O="$PWD/ack-out" ARCH=arm64 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
-          ack/scripts/config --file ack-out/.config --enable KILASU --enable KILASU_SELINUX_INTERNAL
+          ack/scripts/config --file ack-out/.config --enable SECURITY --enable SECURITY_SELINUX --enable KILASU --enable KILASU_SELINUX_INTERNAL
           make -C ack O="$PWD/ack-out" ARCH=arm64 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
-          make -C ack O="$PWD/ack-out" ARCH=arm64 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- -j2 drivers/kilasu/kernel/kilasu.o
+          grep -q "^CONFIG_KILASU=y$" ack-out/.config
+          grep -q "^CONFIG_KILASU_SELINUX_INTERNAL=y$" ack-out/.config
+          make -C ack O="$PWD/ack-out" ARCH=arm64 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=aarch64-linux-gnu- -j2 drivers/kilasu/kernel/
+          test -s ack-out/drivers/kilasu/kernel/core/kila_core.o
       - uses: actions/upload-artifact@v4
         with:
           name: kernel-${{ matrix.branch }}
           path: |
-            ack-out/drivers/kilasu/kernel/kilasu.o
+            ack-out/drivers/kilasu/kernel/**/*.o
             ack-out/.config
