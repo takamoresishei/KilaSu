@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Platform-policy integration starting point. Must pass the target ROM's policy
+# compiler and neverallow checks. Scope additions using real AVCs and tests.
+type kilasd, domain;
+type kilasu, domain;
+type kilasd_exec, exec_type, file_type;
+type kilasu_device, dev_type;
+type kilasu_file, file_type, data_file_type, core_data_file_type;
+system_internal_prop(kilasu_prop)
+binder_use(kilasd)
+binder_call(kilasd, system_server)
+allow kilasd package_service:service_manager find;
+set_prop(kilasd, kilasu_prop)
+
+allow init kilasd:process { transition siginh rlimitinh };
+allow init kilasd_exec:file { open read execute getattr map };
+allow kilasd kilasd_exec:file { entrypoint open read execute getattr map };
+allow kilasd self:capability { sys_admin dac_override dac_read_search chown fowner setuid setgid };
+allow kilasd self:unix_stream_socket { create bind listen accept read write getattr getopt setopt shutdown };
+allow kilasd kilasu_file:dir create_dir_perms;
+allow kilasd kilasu_file:file create_file_perms;
+allow kilasd kilasu_device:chr_file { open read write ioctl getattr };
+allow kilasd system_data_file:file { open read getattr };
+allow kilasd apk_data_file:dir { search getattr };
+allow kilasd apk_data_file:file { open read getattr map };
+allow kilasd system_file:file { open read getattr execute execute_no_trans map mounton relabelto relabelfrom };
+allow kilasd shell_exec:file { open read execute execute_no_trans getattr map };
+allow kilasd proc:file { open read getattr };
+allow kilasd property_type:file { open read getattr map };
+allow kilasd selinuxfs:file { open read getattr };
+
+allow appdomain kilasu_device:chr_file { open read write ioctl getattr };
+allow appdomain kilasd:unix_stream_socket connectto;
+allow kilasd appdomain:unix_stream_socket { read write getattr getopt setopt shutdown };
+allow kilasd appdomain:fd use;
+
+# Credential transition is implemented in the built-in, UID-authorized kernel.
+# Executing the root shell keeps the explicitly constrained kilasu domain.
+allow kilasu self:capability *;
+allow kilasu self:capability2 *;
+allow kilasu self:process { fork sigchld setrlimit };
+allow kilasu system_file:dir { search read open getattr };
+allow kilasu system_file:file { open read write getattr execute execute_no_trans map mounton };
+allow kilasu shell_exec:file { open read execute execute_no_trans getattr map };
+allow kilasu kilasu_file:dir create_dir_perms;
+allow kilasu kilasu_file:file create_file_perms;
+allow kilasu proc:dir { search open read getattr };
+allow kilasu proc:file { open read getattr };
+allow kilasu devpts:chr_file { open read write ioctl getattr };
+allow kilasu appdomain:fd use;

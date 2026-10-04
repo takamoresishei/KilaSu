@@ -1,0 +1,21 @@
+#!/sbin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+set -eu
+OUTFD=$2
+ZIP=$3
+case "$OUTFD" in ''|*[!0-9]*) exit 1;; esac
+umask 077
+WORK="/tmp/kilasu-install-$$"
+mkdir "$WORK"
+trap 'rm -rf "$WORK"' EXIT HUP INT TERM
+unzip -p "$ZIP" lib/common.sh > "$WORK/common.sh"
+. "$WORK/common.sh"
+unzip -p "$ZIP" lib/package.prop > "$WORK/package.prop"
+ACTION=$(prop "$WORK/package.prop" action)
+case "$ACTION" in install|uninstall) ;; *) die 'Invalid recovery action';; esac
+unzip -p "$ZIP" bin/kila-boot > "$WORK/kila-boot"
+chmod 0755 "$WORK/kila-boot"
+EXPECTED=$(prop "$WORK/package.prop" validator_sha256)
+valid_hash "$EXPECTED" && [ "$(digest "$WORK/kila-boot")" = "$EXPECTED" ] || die 'Boot validator checksum mismatch'
+unzip -p "$ZIP" lib/action.sh > "$WORK/action.sh"
+. "$WORK/action.sh"

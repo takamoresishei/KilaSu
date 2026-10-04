@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(kila_native LANGUAGES C CXX)
+get_filename_component(KILA_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../.." ABSOLUTE)
+add_library(kila-native SHARED kila_jni.cpp ${KILA_ROOT}/bootpatch/src/kila_boot.c)
+target_include_directories(kila-native PRIVATE ${KILA_ROOT}/uapi/include ${KILA_ROOT}/bootpatch/src)
+target_compile_options(kila-native PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(kila-native z log)

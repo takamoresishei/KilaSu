@@ -1,0 +1,27 @@
+name: Recovery
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  validator:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y gcc zlib1g-dev
+      - name: Build static arm64 recovery validator
+        run: |
+          mkdir -p dist
+          gcc -std=c11 -O2 -static -Wall -Wextra -Werror -Wl,-z,max-page-size=16384 bootpatch/src/main.c bootpatch/src/kila_boot.c -lz -o dist/kila-boot
+          file dist/kila-boot | tee dist/validator-build.txt
+          ! readelf -l dist/kila-boot | grep -q INTERP
+      - name: Shell syntax checks
+        run: |
+          for script in recovery/common/update-binary recovery/common/common.sh recovery/installer/install.sh recovery/uninstaller/uninstall.sh; do sh -n "$script"; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recovery-validator
+          path: dist/kila-boot

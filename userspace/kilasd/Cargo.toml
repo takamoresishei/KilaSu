@@ -1,0 +1,16 @@
+[package]
+name = "kilasd"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-only"
+build = "build.rs"
+
+[[bin]]
+name = "kilasd"
+path = "src/main.rs"
+
+[[bin]]
+name = "kila"
+path = "src/bin/kila.rs"
+
+[dependencies]

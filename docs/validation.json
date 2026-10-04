@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0",
+  "api": 1,
+  "devices": [],
+  "local": {
+    "rust_unit_tests": "passed",
+    "python_host_tests": "passed",
+    "native_boot_library": "compiled with -Wall -Wextra -Werror",
+    "kernel_external_smoke": "Linux 6.8 x86_64; SELinux credential adapter disabled",
+    "gki_runtime": "not tested",
+    "recovery_flash": "not tested"
+  }
+}

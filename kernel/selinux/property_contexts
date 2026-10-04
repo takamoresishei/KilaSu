@@ -1,0 +1,2 @@
+# SPDX-License-Identifier: GPL-2.0-only
+sys.kilasu.postfs.ready u:object_r:kilasu_prop:s0 exact bool

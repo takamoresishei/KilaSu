@@ -1,0 +1,7 @@
+id=kila_example
+name=KilaSU Lifecycle Example
+version=0.1.0
+versionCode=1
+author=KilaSU contributors
+description=Writes a local lifecycle marker without changing system files.
+minKilaApi=1

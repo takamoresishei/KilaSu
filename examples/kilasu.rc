@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# ROM integration template. Integrate before zygote starts; review action ordering.
+on early-init
+    restorecon /dev/kilasu
+    exec_start kilasu-early
+
+on post-fs-data
+    mkdir /data/adb/kilasu 0700 root root
+    restorecon_recursive /data/adb/kilasu
+    start kilasu-daemon
+    exec_start kilasu-postfs
+
+on property:sys.boot_completed=1
+    exec_start kilasu-completed
+
+service kilasu-daemon /data/adb/kilasu/bin/kilasd daemon
+    class core
+    user root
+    group root
+    seclabel u:r:kilasd:s0
+    disabled
+    restart_period 5
+
+service kilasu-early /system/bin/kilasd lifecycle early-init
+    user root
+    group root
+    seclabel u:r:kilasd:s0
+    disabled
+    oneshot
+
+service kilasu-postfs /data/adb/kilasu/bin/kilasd lifecycle post-fs-data
+    user root
+    group root
+    seclabel u:r:kilasd:s0
+    disabled
+    oneshot
+
+on property:sys.kilasu.postfs.ready=1
+    exec_start kilasu-service
+
+service kilasu-service /data/adb/kilasu/bin/kilasd lifecycle service
+    user root
+    group root
+    seclabel u:r:kilasd:s0
+    disabled
+    oneshot
+
+service kilasu-completed /data/adb/kilasu/bin/kilasd lifecycle boot-completed
+    user root
+    group root
+    seclabel u:r:kilasd:s0
+    disabled
+    oneshot

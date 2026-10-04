@@ -1,0 +1,54 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/release_gate.py "$GITHUB_REF_NAME"
+  manager:
+    needs: gate
+    uses: ./.github/workflows/build-manager.yml
+    with:
+      release: true
+    secrets: inherit
+  daemon:
+    needs: gate
+    uses: ./.github/workflows/build-daemon.yml
+  kernel:
+    needs: gate
+    uses: ./.github/workflows/build-kernel-test.yml
+  recovery:
+    needs: gate
+    uses: ./.github/workflows/build-recovery.yml
+  publish:
+    needs: [manager, daemon, kernel, recovery]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: manager-release
+          path: artifacts/manager
+      - uses: actions/download-artifact@v4
+        with:
+          name: daemon-arm64
+          path: artifacts/daemon
+      - uses: actions/download-artifact@v4
+        with:
+          name: recovery-validator
+          path: artifacts/validator
+      - name: Package
+        run: ./scripts/package.sh --version "$GITHUB_REF_NAME" --apk artifacts/manager/app-release.apk --daemon-dir artifacts/daemon --validator artifacts/validator/kila-boot --output dist
+      - name: Prepare release notes
+        run: python3 tools/release_notes.py "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-notes.md"
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "KilaSU $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-notes.md" --verify-tag

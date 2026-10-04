@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22)
+project(kila_boot C)
+set(CMAKE_C_STANDARD 11)
+add_library(kilaboot STATIC src/kila_boot.c)
+target_compile_options(kilaboot PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(kilaboot PUBLIC z)
+add_executable(kila-boot src/main.c)
+target_link_libraries(kila-boot PRIVATE kilaboot)

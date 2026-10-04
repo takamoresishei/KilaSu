@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config KILASU
+ bool "KilaSU kernel root framework"
+ depends on ARM64 || COMPILE_TEST
+ depends on SECURITY && SECURITY_SELINUX
+ default n
+ help
+   Default-deny root authorization through /dev/kilasu. Source integration
+   and an explicit enforcing SELinux policy are required. See docs/selinux.md.
+
+config KILASU_SELINUX_INTERNAL
+ bool "KilaSU built-in SELinux credential adapter"
+ depends on KILASU
+ default y
+ help
+   Use the in-tree SELinux credential blob accessor. Never enable for a
+   loadable smoke-test module. Missing kilasu policy denies root requests.
