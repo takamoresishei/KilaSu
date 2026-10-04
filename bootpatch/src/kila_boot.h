@@ -10,6 +10,7 @@ struct kila_boot_info {
  char kernel_release[128], image_sha256[65], kernel_sha256[65];
 };
 void kila_sha256(const uint8_t *data, size_t size, uint8_t out[32]);
+int kila_sha256_fd(int fd, uint64_t limit, uint8_t out[32], uint64_t *length);
 uint32_t kila_crc32(const uint8_t *data, size_t size);
 int kila_inflate_raw(const uint8_t *src, size_t size, uint8_t *out, size_t length);
 int kila_boot_parse(const uint8_t *data,size_t size,struct kila_boot_info *out,char *error,size_t capacity);

@@ -46,7 +46,13 @@ class KilaApi(private val context: Context) {
    return response.get("data")
   }
  }
- private fun socket() = LocalSocket().apply { soTimeout = 180000; connect(LocalSocketAddress("kilasu.control.v1", LocalSocketAddress.Namespace.ABSTRACT)) }
+ private fun socket() = LocalSocket().apply {
+  try {
+   soTimeout = 180000
+   connect(LocalSocketAddress("kilasu.control.v1", LocalSocketAddress.Namespace.ABSTRACT))
+   check(peerCredentials.uid == 0) { "Control socket is not owned by the root daemon" }
+  } catch (e: Exception) { close(); throw e }
+ }
  suspend fun rpc(command: String): Any = withContext(Dispatchers.IO) {
   socket().use { s -> Wire.send(s.outputStream, command); unwrap(Wire.receive(s.inputStream)) }
  }

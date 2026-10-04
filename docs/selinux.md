@@ -11,6 +11,10 @@ daemon socket and lifecycle permissions. Starting inputs are provided in
 kernel/selinux/kilasu.te, file_contexts, property_contexts and examples/kilasu.rc.
 The early-init binary must exist in /system/bin, while mutable userspace binaries
 are provisioned under /data/adb after userdata is mounted.
+The source-ROM CLI is labelled `kilasu_client_exec` and stays in its caller's
+application domain until the kernel grants a validated task ticket. Executing
+that file alone never grants root. The private recovery-provisioned CLI is for
+the root administrator; its parent directory is not accessible to ordinary apps.
 
 Integrate these inputs into the platform ROM policy with its standard m4 macros
 and compile them with the ROM's complete policy. They are a reviewable starting

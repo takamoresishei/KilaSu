@@ -51,6 +51,7 @@ extern "C" {
     pub fn kila_inflate_raw(src: *const u8, len: usize, dst: *mut u8, size: usize) -> c_int;
     pub fn kila_crc32(data: *const u8, len: usize) -> u32;
     pub fn kila_sha256(data: *const u8, len: usize, dst: *mut u8);
+    pub fn kila_sha256_fd(fd: c_int, limit: u64, dst: *mut u8, length: *mut u64) -> c_int;
 }
 pub fn peer(fd: c_int) -> io::Result<Peer> {
     let mut p = Peer {
@@ -73,5 +74,16 @@ pub fn root() -> io::Result<()> {
             io::ErrorKind::PermissionDenied,
             "root daemon context required",
         ))
+    }
+}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn peer_credentials_come_from_the_kernel() {
+        use std::os::{fd::AsRawFd, unix::net::UnixStream};
+        let (first, _) = UnixStream::pair().unwrap();
+        let peer = super::peer(first.as_raw_fd()).unwrap();
+        assert_eq!(peer.uid, unsafe { super::geteuid() });
+        assert_eq!(peer.pid as u32, std::process::id());
     }
 }

@@ -14,10 +14,16 @@ not transfer caller privileges. Tickets hold task references, preventing PID
 reuse from converting a prior ticket into another process's access.
 
 Daemon rules: kernel-provided socket peers; unique package/UID mapping; exact
-APK hash verification on administrative calls and on every root-ticket request;
+APK hash verification on administrative calls and on every approved root-ticket request;
 root-owned pin/database; atomic writes; install size limits; bounded workers;
 safe module paths; CRC checks; controlled script environment/timeouts. Shared
-UID packages, split Manager APKs and unpinned app updates fail closed.
+UID packages, split APK packages and unpinned app updates fail closed.
+
+Manager and CLI verify that the connected socket peer is UID 0 before sending
+requests. An ordinary app that binds the abstract socket name cannot impersonate
+the daemon. APK hashing streams through a fixed 4 KiB buffer and rejects a file
+that changes during verification; unapproved callers are rejected before APK
+hashing. Both sides apply bounded socket timeouts.
 
 APK pins are hashes of signed complete artifacts, rather than a Java-provided
 claim about their signer. The Android package manager validates the APK install;

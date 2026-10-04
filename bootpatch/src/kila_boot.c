@@ -41,6 +41,29 @@ void kila_sha256(const uint8_t *data,size_t size,uint8_t out[32]){
  sha_block(h,tail);if(blocks==2)sha_block(h,tail+64);
  for(int i=0;i<8;i++)for(int j=0;j<4;j++)out[i*4+j]=(uint8_t)(h[i]>>(24-8*j));
 }
+int kila_sha256_fd(int fd,uint64_t limit,uint8_t out[32],uint64_t *length){
+ uint32_t h[8]={0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19};
+ uint8_t buffer[4096],tail[128]={0};size_t used=0;uint64_t total=0;
+ if(fd<0||!out||!length||limit>UINT64_MAX/8){errno=EINVAL;return -1;}
+ for(;;){
+  ssize_t n=read(fd,buffer,sizeof(buffer));
+  if(n<0){if(errno==EINTR)continue;return -1;}
+  if(!n)break;
+  if((uint64_t)n>limit-total){errno=EFBIG;return -1;}
+  total+=(uint64_t)n;size_t offset=0;
+  while(offset<(size_t)n){
+   size_t take=64-used;if(take>(size_t)n-offset)take=(size_t)n-offset;
+   memcpy(tail+used,buffer+offset,take);used+=take;offset+=take;
+   if(used==64){sha_block(h,tail);used=0;}
+  }
+ }
+ memset(tail+used,0,sizeof(tail)-used);tail[used]=0x80;
+ size_t blocks=used>=56?2:1;uint64_t bits=total*8;
+ for(int i=0;i<8;i++)tail[blocks*64-1-i]=(uint8_t)(bits>>(8*i));
+ sha_block(h,tail);if(blocks==2)sha_block(h,tail+64);
+ for(int i=0;i<8;i++)for(int j=0;j<4;j++)out[i*4+j]=(uint8_t)(h[i]>>(24-8*j));
+ *length=total;return 0;
+}
 static void hash_hex(const uint8_t *data,size_t size,char out[65]){uint8_t hash[32];const char *hex="0123456789abcdef";kila_sha256(data,size,hash);for(int i=0;i<32;i++){out[2*i]=hex[hash[i]>>4];out[2*i+1]=hex[hash[i]&15];}out[64]=0;}
 uint32_t kila_crc32(const uint8_t *data,size_t size){return (uint32_t)crc32(0,data,(uInt)size);}
 int kila_inflate_raw(const uint8_t *src,size_t size,uint8_t *out,size_t length){

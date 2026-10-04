@@ -2,7 +2,7 @@
 use crate::{
     config,
     kernel::{self, Kernel},
-    util::{err, sha256},
+    util::err,
 };
 use std::{
     fs, io,
@@ -63,7 +63,7 @@ fn apk_path(package: &str) -> io::Result<PathBuf> {
         .collect();
     if paths.len() != 1 {
         return Err(err(
-            "split APK identity unsupported; install universal Manager APK",
+            "split APK identity unsupported; a universal APK is required",
         ));
     }
     let p = fs::canonicalize(paths[0])?;
@@ -79,13 +79,31 @@ pub fn app_hash(package: &str) -> io::Result<String> {
     if !m.is_file() || m.len() > 256 * 1024 * 1024 || m.mode() & 0o022 != 0 {
         return Err(err("unsafe APK file"));
     }
-    use std::io::Read;
-    let mut b = Vec::new();
-    f.take(256 * 1024 * 1024 + 1).read_to_end(&mut b)?;
-    if b.len() as u64 != m.len() {
+    use std::os::fd::AsRawFd;
+    let mut digest = [0u8; 32];
+    let mut length = 0u64;
+    if unsafe {
+        crate::sys::kila_sha256_fd(
+            f.as_raw_fd(),
+            256 * 1024 * 1024,
+            digest.as_mut_ptr(),
+            &mut length,
+        )
+    } != 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    let after = f.metadata()?;
+    if length != m.len()
+        || after.len() != m.len()
+        || after.mtime() != m.mtime()
+        || after.mtime_nsec() != m.mtime_nsec()
+        || after.ctime() != m.ctime()
+        || after.ctime_nsec() != m.ctime_nsec()
+    {
         return Err(err("APK changed during verification"));
     }
-    Ok(sha256(&b))
+    Ok(crate::util::hex_hash(&digest))
 }
 pub fn manager_hash(root: &Path) -> io::Result<String> {
     let p = root.join("manager.prop");

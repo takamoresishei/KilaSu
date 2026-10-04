@@ -68,7 +68,13 @@ pub fn connect() -> io::Result<UnixStream> {
         }
         return Err(e);
     }
-    Ok(unsafe { UnixStream::from_raw_fd(fd) })
+    let stream = unsafe { UnixStream::from_raw_fd(fd) };
+    if sys::peer(stream.as_raw_fd())?.uid != 0 {
+        return Err(err("control socket is not owned by the root daemon"));
+    }
+    stream.set_read_timeout(Some(Duration::from_secs(180)))?;
+    stream.set_write_timeout(Some(Duration::from_secs(180)))?;
+    Ok(stream)
 }
 fn validate(root: &Path, uid: u32) -> io::Result<()> {
     if uid == 0 {
@@ -263,13 +269,21 @@ fn authorize_root(root: &Path, peer: &sys::Peer) -> io::Result<String> {
     if !crate::kernel::app_uid(uid) {
         return Err(err("non-application caller denied"));
     }
-    let package = identity::unique_package(uid)?;
-    let hash = identity::app_hash(&package)?;
     let _lock = lock(root, "permissions.lock")?;
     let text = fs::read_to_string(root.join("permissions.db"))?;
+    let uid_text = uid.to_string();
+    if text.len() > 512 * 1024
+        || !text
+            .lines()
+            .any(|l| l.split('\t').next() == Some(uid_text.as_str()))
+    {
+        return Err(err("application identity is not approved"));
+    }
+    let package = identity::unique_package(uid)?;
+    let hash = identity::app_hash(&package)?;
     let matches = text.lines().any(|l| {
         let c: Vec<_> = l.split('\t').collect();
-        c.len() == 5 && c[0] == uid.to_string() && c[1] == package && c[2] == hash
+        c.len() == 5 && c[0] == uid_text && c[1] == package && c[2] == hash
     });
     if !matches {
         return Err(err("application identity is not approved"));

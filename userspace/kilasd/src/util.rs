@@ -42,9 +42,12 @@ pub fn sha256(bytes: &[u8]) -> String {
     unsafe {
         crate::sys::kila_sha256(bytes.as_ptr(), bytes.len(), hash.as_mut_ptr());
     }
+    hex_hash(&hash)
+}
+pub fn hex_hash(hash: &[u8; 32]) -> String {
     const HEX: &[u8] = b"0123456789abcdef";
     let mut out = String::with_capacity(64);
-    for byte in hash {
+    for &byte in hash {
         out.push(HEX[(byte >> 4) as usize] as char);
         out.push(HEX[(byte & 15) as usize] as char);
     }

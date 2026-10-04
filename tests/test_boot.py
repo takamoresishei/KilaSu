@@ -43,6 +43,7 @@ class BootTests(unittest.TestCase):
         cls.lib.kila_boot_parse.argtypes = [C.c_void_p,C.c_size_t,C.POINTER(Info),C.c_char_p,C.c_size_t]
         cls.lib.kila_boot_patch.argtypes = [C.c_char_p]*4+[C.c_int,C.POINTER(Info),C.c_char_p,C.c_size_t]
         cls.lib.kila_sha256.argtypes = [C.c_void_p,C.c_size_t,C.c_void_p]
+        cls.lib.kila_sha256_fd.argtypes = [C.c_int,C.c_uint64,C.c_void_p,C.POINTER(C.c_uint64)]
     @classmethod
     def tearDownClass(cls): cls.temp.cleanup()
     def parse(self, data):
@@ -94,5 +95,17 @@ class BootTests(unittest.TestCase):
         for _ in range(100):
             data=bytearray(boot());position=rng.randrange(8,44);data[position]=rng.randrange(256)
             self.parse(bytes(data))
+    def test_streaming_hash_boundaries_and_limit(self):
+        for size in [0, 1, 55, 56, 63, 64, 65, 4095, 4096, 4097, 65537]:
+            data = bytes(i % 251 for i in range(size))
+            with tempfile.TemporaryFile() as stream:
+                stream.write(data); stream.seek(0)
+                out = C.create_string_buffer(32); length = C.c_uint64()
+                self.assertEqual(self.lib.kila_sha256_fd(stream.fileno(), size, out, C.byref(length)), 0)
+                self.assertEqual(out.raw, hashlib.sha256(data).digest())
+                self.assertEqual(length.value, size)
+                if size:
+                    stream.seek(0)
+                    self.assertNotEqual(self.lib.kila_sha256_fd(stream.fileno(), size - 1, out, C.byref(length)), 0)
 
 if __name__=='__main__': unittest.main()

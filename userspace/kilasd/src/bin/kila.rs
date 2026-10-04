@@ -34,6 +34,7 @@ fn run() -> io::Result<()> {
         let start = Instant::now();
         loop {
             if let Ok(mut s) = kilasd::server::connect() {
+                let _ = s.set_read_timeout(Some(Duration::from_secs(5)));
                 let _ = kilasd::protocol::send(&mut s, "authorize-root");
                 let _ = kilasd::protocol::receive(&mut s);
             }

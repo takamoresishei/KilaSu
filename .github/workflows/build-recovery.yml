@@ -2,6 +2,7 @@ name: Recovery
 on:
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "README.md", "CHANGELOG.md"]
   pull_request:
   workflow_call:
 permissions:
