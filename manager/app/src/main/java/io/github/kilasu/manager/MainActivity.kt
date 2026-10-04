@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -110,10 +111,12 @@ class MainActivity : ComponentActivity() {
      }
     }
     AnimatedVisibility(!opened, exit = fadeOut(tween(300))) {
-     val alpha by animateFloatAsState(if (opened) 0f else 1f, tween(700), label = "logo-opacity")
-     val scale by animateFloatAsState(if (opened) 1.05f else 1f, spring(), label = "logo-scale")
+     var revealed by remember { mutableStateOf(false) }
+     LaunchedEffect(Unit) { revealed = true }
+     val alpha by animateFloatAsState(if (opened) 0f else if (revealed) 1f else 0f, tween(700), label = "logo-opacity")
+     val scale by animateFloatAsState(if (opened) 1.05f else if (revealed) 1f else .88f, spring(dampingRatio = .85f), label = "logo-scale")
      Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-      Column(Modifier.graphicsLayer { alpha.let { this.alpha = it }; scaleX = scale; scaleY = scale }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+      Column(Modifier.graphicsLayer { alpha.let { this.alpha = it }; scaleX = scale; scaleY = scale }.blur(((1f - alpha) * 12f).dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
        KilaLogo(Modifier.size(82.dp)); Text("KilaSU", style = MaterialTheme.typography.headlineLarge); Text("Kernel Root Framework", style = MaterialTheme.typography.labelLarge)
       }
      }

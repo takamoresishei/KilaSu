@@ -37,7 +37,14 @@ They run with the daemon's enforcing domain, logs and a bounded execution time.
 Module-provided scripts are privileged and must avoid printing secrets themselves.
 
 The initial systemless engine bind-mounts existing regular /system files. It
-rejects conflicting ownership and non-existing targets. It does not implement
+rejects conflicting ownership and non-existing targets.
+Mount preflight checks every target before binding any file and rejects symlinks
+that could redirect a mount outside the system tree. The engine copies each
+target's SELinux label to its replacement; the ROM policy must explicitly allow
+the relevant relabel operations. A failed bind rolls back earlier binds in
+reverse order and reports any rollback failure.
+
+It does not implement
 OverlayFS directory merges, .replace semantics, new system paths, vendor/product
 remaps, Magisk installer helper functions or per-app mount filtering. Such
 modules fail clearly rather than pretending to mount successfully.

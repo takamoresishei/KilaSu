@@ -8,5 +8,6 @@ endif
 kilasu-y := core/kila_core.o core/kila_api.o core/kila_uid.o \
  core/kila_manager.o core/kila_allowlist.o core/kila_profile.o \
  core/kila_version.o security/kila_audit.o security/kila_ticket.o selinux/kila_selinux.o compat/kila_cred.o
-ccflags-y += -I$(src)/include -I$(src)/compat -I$(src)/../uapi/include
+kila-src := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
+ccflags-y += -I$(kila-src)/include -I$(kila-src)/compat -I$(kila-src)/../uapi/include
 ccflags-$(CONFIG_KILASU_SELINUX_INTERNAL) += -I$(srctree)/security/selinux/include

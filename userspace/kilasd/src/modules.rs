@@ -7,7 +7,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     ffi::CString,
     fs, io,
-    path::{Component, Path},
+    path::{Component, Path, PathBuf},
     process::{Command, Stdio},
     time::{Duration, Instant},
 };
@@ -346,7 +346,10 @@ pub fn install(root: &Path, zip: &Path) -> io::Result<String> {
             }
         }
         run_script(root, &stage, "customize.sh", 120)?;
-        metadata(&fs::read_to_string(stage.join("module.prop"))?)?;
+        let customized = metadata(&fs::read_to_string(stage.join("module.prop"))?)?;
+        if customized.id != m.id {
+            return Err(err("installer changed the module ID"));
+        }
         // Update staging never replaces an already queued transaction silently.
         let pending = root.join("modules_update");
         secure_dir(&pending, 0o700)?;
@@ -447,10 +450,14 @@ fn files(dir: &Path) -> io::Result<Vec<std::path::PathBuf>> {
     out.sort();
     Ok(out)
 }
-pub fn mount_system(root: &Path) -> io::Result<String> {
-    sys::root()?;
+struct BindMount {
+    source: PathBuf,
+    target: PathBuf,
+}
+fn mount_plan(root: &Path, system: &Path) -> io::Result<Vec<BindMount>> {
     let mut owners = BTreeMap::new();
-    let mut count = 0;
+    let mut plan = Vec::new();
+    let system = system.canonicalize()?;
     for m in list(root)? {
         if m.disabled || m.remove || m.pending {
             continue;
@@ -459,12 +466,17 @@ pub fn mount_system(root: &Path) -> io::Result<String> {
         if !source.exists() {
             continue;
         }
+        if !fs::symlink_metadata(&source)?.file_type().is_dir() {
+            return Err(err("module system directory must not be a symlink"));
+        }
         for file in files(&source)? {
             let rel = file
                 .strip_prefix(&source)
                 .map_err(|_| err("mount path invalid"))?;
-            let dst = Path::new("/system").join(rel);
-            if !dst.is_file() {
+            let dst = system.join(rel);
+            if !fs::symlink_metadata(&dst)?.file_type().is_file()
+                || !dst.canonicalize()?.starts_with(&system)
+            {
                 return Err(err(format!(
                     "overlay requires existing regular target: {}",
                     dst.display()
@@ -473,29 +485,123 @@ pub fn mount_system(root: &Path) -> io::Result<String> {
             if let Some(id) = owners.insert(dst.clone(), m.id.clone()) {
                 return Err(err(format!("module conflict: {} and {}", id, m.id)));
             }
-            let src = CString::new(file.to_str().ok_or_else(|| err("mount path UTF-8"))?)
-                .map_err(|_| err("invalid source"))?;
-            let dst =
-                CString::new(dst.to_str().unwrap()).map_err(|_| err("invalid destination"))?;
-            if unsafe {
-                sys::mount(
-                    src.as_ptr(),
-                    dst.as_ptr(),
-                    std::ptr::null(),
-                    4096,
-                    std::ptr::null(),
-                )
-            } != 0
-            {
-                return Err(io::Error::last_os_error());
-            }
-            count += 1;
+            plan.push(BindMount {
+                source: file,
+                target: dst,
+            });
         }
     }
-    Ok(format!("{count} file bind mounts"))
+    Ok(plan)
+}
+fn cpath(path: &Path) -> io::Result<CString> {
+    CString::new(path.to_str().ok_or_else(|| err("mount path UTF-8"))?)
+        .map_err(|_| err("invalid mount path"))
+}
+fn copy_label(source: &CString, target: &CString) -> io::Result<()> {
+    let name = b"security.selinux\0";
+    let mut label = [0u8; 4096];
+    let n = unsafe {
+        sys::getxattr(
+            target.as_ptr(),
+            name.as_ptr().cast(),
+            label.as_mut_ptr().cast(),
+            label.len(),
+        )
+    };
+    if n < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if n == 0 || n as usize > label.len() {
+        return Err(err("invalid target SELinux label"));
+    }
+    if unsafe {
+        sys::setxattr(
+            source.as_ptr(),
+            name.as_ptr().cast(),
+            label.as_ptr().cast(),
+            n as usize,
+            0,
+        )
+    } != 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+pub fn mount_system(root: &Path) -> io::Result<String> {
+    sys::root()?;
+    // Validate the complete graph and label all sources before touching mounts.
+    let plan = mount_plan(root, Path::new("/system"))?;
+    let mut ready = Vec::new();
+    for m in &plan {
+        let source = cpath(&m.source)?;
+        let target = cpath(&m.target)?;
+        copy_label(&source, &target)?;
+        ready.push((source, target));
+    }
+    let mut mounted: Vec<&CString> = Vec::new();
+    for (src, dst) in &ready {
+        if unsafe {
+            sys::mount(
+                src.as_ptr(),
+                dst.as_ptr(),
+                std::ptr::null(),
+                4096,
+                std::ptr::null(),
+            )
+        } != 0
+        {
+            let cause = io::Error::last_os_error();
+            let mut rollback_failed = false;
+            for target in mounted.iter().rev() {
+                if unsafe { sys::umount2(target.as_ptr(), 2) } != 0 {
+                    rollback_failed = true;
+                }
+            }
+            return Err(err(format!(
+                "module bind mount failed: {cause}; rollback {}",
+                if rollback_failed {
+                    "incomplete; inspect mount state"
+                } else {
+                    "complete"
+                }
+            )));
+        }
+        mounted.push(dst);
+    }
+    Ok(format!("{} file bind mounts", mounted.len()))
 }
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    struct Temp(std::path::PathBuf);
+    impl Temp {
+        fn new() -> Self {
+            static NEXT: AtomicUsize = AtomicUsize::new(0);
+            let p = std::env::temp_dir().join(format!(
+                "kilasu-module-test-{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::Relaxed)
+            ));
+            std::fs::create_dir(&p).unwrap();
+            Self(p)
+        }
+        fn module(&self, id: &str) {
+            let p = self.0.join("modules").join(id);
+            std::fs::create_dir_all(p.join("system/etc")).unwrap();
+            std::fs::write(
+                p.join("module.prop"),
+                format!("id={id}\nname=Test\nversion=1\nversionCode=1\nauthor=A\ndescription=D"),
+            )
+            .unwrap();
+            std::fs::write(p.join("system/etc/sample"), "new").unwrap();
+        }
+    }
+    impl Drop for Temp {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
     #[test]
     fn props() {
         let m=super::metadata("id=hello\nname=Hello\nversion=1.0\nversionCode=1\nauthor=A\ndescription=D\nminKilaApi=1").unwrap();
@@ -506,5 +612,40 @@ mod tests {
         assert!(!super::valid_id("../bad"));
         assert!(super::metadata("id=x\nversionCode=-1").is_err());
         assert!(super::archive(&[0; 22]).is_err());
+    }
+    #[test]
+    fn standard_zip_fixtures_validate_content_and_reject_unsafe_paths() {
+        let good = include_bytes!("../../../tests/fixtures/modules/valid.zip");
+        let entries = super::archive(good).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[1].bytes, b"replacement");
+        for bad in [
+            include_bytes!("../../../tests/fixtures/modules/traversal.zip").as_slice(),
+            include_bytes!("../../../tests/fixtures/modules/duplicate.zip").as_slice(),
+            include_bytes!("../../../tests/fixtures/modules/symlink.zip").as_slice(),
+        ] {
+            assert!(super::archive(bad).is_err());
+        }
+        let mut corrupt = good.to_vec();
+        corrupt["module.prop".len() + 31] ^= 0x55;
+        assert!(super::archive(&corrupt).is_err());
+    }
+    #[test]
+    fn mount_preflight_rejects_conflicts_and_does_not_follow_system_symlinks() {
+        let temp = Temp::new();
+        let system = temp.0.join("system");
+        std::fs::create_dir_all(system.join("etc")).unwrap();
+        std::fs::write(system.join("etc/sample"), "original").unwrap();
+        temp.module("a");
+        assert_eq!(super::mount_plan(&temp.0, &system).unwrap().len(), 1);
+        temp.module("b");
+        assert!(super::mount_plan(&temp.0, &system).is_err());
+        std::fs::write(temp.0.join("modules/b/disable"), "").unwrap();
+        assert_eq!(super::mount_plan(&temp.0, &system).unwrap().len(), 1);
+        std::fs::remove_file(system.join("etc/sample")).unwrap();
+        let outside = temp.0.join("outside");
+        std::fs::write(&outside, "outside").unwrap();
+        std::os::unix::fs::symlink(outside, system.join("etc/sample")).unwrap();
+        assert!(super::mount_plan(&temp.0, &system).is_err());
     }
 }

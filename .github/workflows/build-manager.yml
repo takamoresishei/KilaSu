@@ -67,7 +67,7 @@ jobs:
           name: manager-reports
           path: manager/app/build/reports
   screenshot:
-    if: github.event_name != 'workflow_call'
+    if: '!inputs.release'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -93,9 +93,8 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            cd manager
-            ./gradlew --no-daemon connectedDebugAndroidTest
-            adb pull /sdcard/Android/data/io.github.kilasu.manager/files/manager-home.png ../manager-home.png
+            cd manager && ./gradlew --no-daemon connectedDebugAndroidTest
+            adb pull /sdcard/Android/data/io.github.kilasu.manager/files/manager-home.png manager-home.png
       - uses: actions/upload-artifact@v4
         with:
           name: manager-screenshot

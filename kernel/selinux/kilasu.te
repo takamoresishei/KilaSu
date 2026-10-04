@@ -19,6 +19,7 @@ allow kilasd self:capability { sys_admin dac_override dac_read_search chown fown
 allow kilasd self:unix_stream_socket { create bind listen accept read write getattr getopt setopt shutdown };
 allow kilasd kilasu_file:dir create_dir_perms;
 allow kilasd kilasu_file:file create_file_perms;
+allow kilasd kilasu_file:file relabelfrom;
 allow kilasd kilasu_device:chr_file { open read write ioctl getattr };
 allow kilasd system_data_file:file { open read getattr };
 allow kilasd apk_data_file:dir { search getattr };

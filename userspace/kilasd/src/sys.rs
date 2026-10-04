@@ -34,6 +34,20 @@ extern "C" {
         data: *const c_void,
     ) -> c_int;
     pub fn unshare(flags: c_int) -> c_int;
+    pub fn umount2(target: *const c_char, flags: c_int) -> c_int;
+    pub fn getxattr(
+        path: *const c_char,
+        name: *const c_char,
+        value: *mut c_void,
+        size: usize,
+    ) -> isize;
+    pub fn setxattr(
+        path: *const c_char,
+        name: *const c_char,
+        value: *const c_void,
+        size: usize,
+        flags: c_int,
+    ) -> c_int;
     pub fn kila_inflate_raw(src: *const u8, len: usize, dst: *mut u8, size: usize) -> c_int;
     pub fn kila_crc32(data: *const u8, len: usize) -> u32;
     pub fn kila_sha256(data: *const u8, len: usize, dst: *mut u8);
