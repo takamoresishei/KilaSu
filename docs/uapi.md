@@ -21,7 +21,13 @@ variable-length kernel buffers are accepted.
 | ISSUE_TICKET | 16 | Privileged daemon / administrator |
 
 The kernel rejects bad magic, nonzero reserved fields, incorrect exact payload
-length, unknown commands and unsupported API versions. Feature bits announce
+length, unknown commands and unsupported API versions.
+The exception is GET_VERSION: its fixed 88-byte discovery layout remains
+available to clients with another API number. This lets Manager identify an old
+or new backend, show its supported range, and disable unsupported controls.
+All operational commands still require an explicitly supported API number.
+
+Feature bits announce
 authorization, profiles, audit, enforcing-domain availability, actual grant
 adapter availability, allow-once and process-ticket support. API v1 does not
 claim environment profiles, per-module hiding or mount namespace choices.

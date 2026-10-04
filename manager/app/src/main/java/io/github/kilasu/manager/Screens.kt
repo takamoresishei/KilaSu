@@ -41,15 +41,15 @@ import kotlinx.coroutines.launch
  LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(22.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
   item { Row(verticalAlignment = Alignment.CenterVertically) { KilaLogo(); Spacer(Modifier.width(14.dp)); Column { Text("KilaSU", style = MaterialTheme.typography.headlineLarge); Text("Kernel Root Framework", style = MaterialTheme.typography.bodyMedium) } } }
   item { GlassPanel(Modifier.fillMaxWidth()) {
-   val title = when { checking -> "Checking backend"; b.operational -> "Working"; b.rootReady -> "Daemon Unavailable"; b.installed -> "Policy Required"; else -> "Not Installed" }
+   val title = when { checking -> "Checking backend"; b.installed && !b.compatible -> "Incompatible API"; b.operational -> "Working"; b.rootReady -> "Daemon Unavailable"; b.installed -> "Policy Required"; else -> "Not Installed" }
    Text(title, style = MaterialTheme.typography.headlineMedium)
-   Text(when { checking -> "Reading the KilaSU kernel interface."; b.operational -> "Kernel Backend Connected"; b.installed -> "${b.error ?: "Enforcing SELinux integration is required."}"; else -> "KilaSU kernel backend was not detected." }, color = MaterialTheme.colorScheme.onSurfaceVariant)
+   Text(when { checking -> "Reading the KilaSU kernel interface."; b.installed && !b.compatible -> "Manager API ${KilaApi.API} is outside the kernel's supported range."; b.operational -> "Kernel Backend Connected"; b.installed -> "${b.error ?: "Enforcing SELinux integration is required."}"; else -> "KilaSU kernel backend was not detected." }, color = MaterialTheme.colorScheme.onSurfaceVariant)
    if (!checking && !b.installed) Button(onClick = patch) { Text("Patch boot.img") }
    if (b.installed) Info("Kernel", b.kernel!!.optString("kernel"))
    if (b.kernel != null) {
     Info("KilaSU Kernel", kernelVersion(b.kernel.getInt("kernelVersion")))
     Info("API", "v${b.kernel.getInt("api")}")
-    if (b.kernel.getInt("api") != KilaApi.API) Text("Compatibility warning: Manager API ${KilaApi.API}", color = MaterialTheme.colorScheme.error)
+    if (b.kernel.getInt("api") != KilaApi.API || !b.compatible) Text("Compatibility: kernel API ${b.kernel.optInt("apiMin")}–${b.kernel.getInt("api")}, Manager API ${KilaApi.API}", color = MaterialTheme.colorScheme.error)
    }
   } }
   item { GlassPanel(Modifier.fillMaxWidth()) {

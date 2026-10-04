@@ -62,7 +62,7 @@ class MainActivity : ComponentActivity() {
  val perform: (suspend () -> Unit) -> Unit = { action -> scope.launch { try { action() } catch (e: Exception) { snackbar.showSnackbar(e.message ?: "Operation failed") } } }
  suspend fun refresh() {
   backend = api.backend(); checking = false
-  if (backend.daemon != null) {
+  if (backend.daemon != null && backend.compatible) {
    runCatching { api.apps() }.onSuccess { apps = it }
    runCatching { api.modules() }.onSuccess { modules = it }
    if (prompts) runCatching {
@@ -101,8 +101,8 @@ class MainActivity : ComponentActivity() {
       Box(Modifier.padding(padding).fillMaxSize()) {
        when (tab) {
         "Home" -> HomeScreen(backend, checking, modules.size, { tab = "Patch" }, { perform { refresh() } })
-        "Superuser" -> SuperuserScreen(apps, backend.daemon != null) { app, access, caps -> perform { api.permission(app, access, caps); refresh() } }
-        "Modules" -> ModulesScreen(modules, backend.daemon != null, api, { action -> perform { action(); refresh() } })
+        "Superuser" -> SuperuserScreen(apps, backend.daemon != null && backend.compatible) { app, access, caps -> perform { api.permission(app, access, caps); refresh() } }
+        "Modules" -> ModulesScreen(modules, backend.daemon != null && backend.compatible, api, { action -> perform { action(); refresh() } })
         "Patch" -> PatchScreen { tab = "Home" }
         "Diagnostics" -> DiagnosticsScreen(api, backend) { tab = "Settings" }
         else -> SettingsScreen(backend, dark, dynamic, intensity, animation, prompts,

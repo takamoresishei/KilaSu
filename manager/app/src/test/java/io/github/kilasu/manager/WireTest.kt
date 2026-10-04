@@ -13,4 +13,8 @@ class WireTest {
   assertArrayEquals(byteArrayOf(1, 2, 3), BootPatcher.readBounded(ByteArrayInputStream(byteArrayOf(1, 2, 3)), 3))
   try { BootPatcher.readBounded(ByteArrayInputStream(byteArrayOf(1, 2, 3, 4)), 3); fail("accepted oversized property stream") } catch (_: IllegalArgumentException) { }
  }
+ @Test fun versionNegotiation() {
+  assertTrue(KilaApi.supportsApi(1, 1)); assertTrue(KilaApi.supportsApi(1, 4))
+  assertFalse(KilaApi.supportsApi(2, 4)); assertFalse(KilaApi.supportsApi(0, 0)); assertFalse(KilaApi.supportsApi(4, 2))
+ }
 }

@@ -24,6 +24,10 @@ requests. An ordinary app that binds the abstract socket name cannot impersonate
 the daemon. APK hashing streams through a fixed 4 KiB buffer and rejects a file
 that changes during verification; unapproved callers are rejected before APK
 hashing. Both sides apply bounded socket timeouts.
+Package-triggered profile restoration and Manager updates use the same file
+lock. The whole permission database is parsed before kernel writes, so a stale
+restore cannot overwrite a completed revoke and malformed trailing records
+cannot cause partial parsing to apply earlier records.
 
 APK pins are hashes of signed complete artifacts, rather than a Java-provided
 claim about their signer. The Android package manager validates the APK install;

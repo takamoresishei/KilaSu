@@ -72,7 +72,9 @@ long kila_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  length = expected_length(m->command);
  if (m->magic != KILASU_MAGIC || m->reserved || m->length > KILASU_PAYLOAD_SIZE)
   ret = -EINVAL;
- else if (m->api != KILASU_API_VERSION) ret = -EPROTONOSUPPORT;
+ /* Discovery has a frozen 88-byte schema, including the supported API range. */
+ else if (m->api != KILASU_API_VERSION && m->command != KILASU_CMD_GET_VERSION)
+  ret = -EPROTONOSUPPORT;
  else if (length < 0) ret = length;
  else if (m->length != length) ret = -EMSGSIZE;
  else ret = dispatch(m);

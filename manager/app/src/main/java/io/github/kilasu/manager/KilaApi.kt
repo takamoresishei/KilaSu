@@ -31,7 +31,8 @@ object Wire {
 }
 data class Backend(val kernel: JSONObject? = null, val daemon: JSONObject? = null, val error: String? = null) {
  val installed get() = kernel != null
- val rootReady get() = installed && (kernel!!.optLong("features") and 16L != 0L)
+ val compatible get() = kernel?.let { KilaApi.supportsApi(it.optInt("apiMin", it.optInt("api")), it.optInt("api")) } ?: false
+ val rootReady get() = compatible && (kernel!!.optLong("features") and 16L != 0L)
  val operational get() = rootReady && daemon != null
 }
 data class RootApp(val pkg: String, val uid: Int, val permission: Int, val caps: Long, val lastRequest: Long, val lastGrant: Long)
@@ -40,6 +41,7 @@ class KilaApi(private val context: Context) {
  companion object {
   const val API = 1
   const val FULL_CAPS = (1L shl 41) - 1
+  fun supportsApi(min: Int, max: Int): Boolean = min > 0 && min <= API && API <= max
   fun unwrap(text: String): Any {
    val response = JSONObject(text)
    check(response.optBoolean("ok")) { response.optString("error", "Backend operation failed") }

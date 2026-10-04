@@ -94,6 +94,9 @@ fn apps() -> io::Result<String> {
     Ok(format!("[{}]",identity::apps()?.iter().map(|a|{let p=profiles.iter().find(|p|p.uid==a.uid).cloned().unwrap_or_default();format!("{{\"package\":{},\"uid\":{},\"permission\":{},\"capabilities\":{},\"lastRequest\":{},\"lastGrant\":{}}}",json(&a.package),a.uid,p.permission,p.capabilities,p.last_request,p.last_grant)}).collect::<Vec<_>>().join(",")))
 }
 pub fn restore_permissions(root: &Path) -> io::Result<()> {
+    // Package monitoring and Manager changes share one transaction lock.
+    // A stale restore must never overwrite a completed revoke.
+    let _lock = lock(root, "permissions.lock")?;
     let p = root.join("permissions.db");
     if !p.exists() {
         return Ok(());
@@ -102,7 +105,8 @@ pub fn restore_permissions(root: &Path) -> io::Result<()> {
     if text.len() > 512 * 1024 {
         return Err(err("permission database too large"));
     }
-    let k = Kernel::open()?;
+    let mut records = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
     for line in text.lines() {
         let cols: Vec<_> = line.split('\t').collect();
         if cols.len() != 5 {
@@ -111,11 +115,28 @@ pub fn restore_permissions(root: &Path) -> io::Result<()> {
         let uid: u32 = cols[0].parse().map_err(|_| err("corrupt UID"))?;
         let permission: u32 = cols[3].parse().map_err(|_| err("corrupt permission"))?;
         let caps: u64 = cols[4].parse().map_err(|_| err("corrupt capabilities"))?;
-        if permission > 1 {
-            return Err(err("once grants cannot persist"));
+        if permission > 1
+            || !crate::kernel::app_uid(uid)
+            || caps >> 41 != 0
+            || !seen.insert(uid)
+            || seen.len() > 1024
+            || cols[1].is_empty()
+            || cols[1].len() > 255
+            || !cols[1]
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'.')
+            || cols[2].len() != 64
+            || !cols[2].bytes().all(|b| b.is_ascii_hexdigit())
+        {
+            return Err(err("invalid permission database record"));
         }
-        let matching = identity::unique_package(uid).ok().as_deref() == Some(cols[1])
-            && identity::app_hash(cols[1]).ok().as_deref() == Some(cols[2]);
+        records.push((uid, permission, caps, cols[1], cols[2]));
+    }
+    let k = Kernel::open()?;
+    // Parse the complete database before mutating any kernel profile.
+    for (uid, permission, caps, package, hash) in records {
+        let matching = identity::unique_package(uid).ok().as_deref() == Some(package)
+            && identity::app_hash(package).ok().as_deref() == Some(hash);
         k.set_profile(&Profile {
             uid,
             permission: if matching { permission } else { 0 },
