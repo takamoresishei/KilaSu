@@ -14,19 +14,22 @@ from package import package
 def api(path):
     return json.loads(subprocess.check_output(["gh", "api", path], text=True))
 
-def collect(repo, sha, workspace):
+def collect(repo, sha, workspace, include_manager=False):
     expected = {"Daemon": ("daemon-arm64", {"kila", "kilasd"}),
                 "Recovery": ("recovery-validator", {"kila-boot"}),
                 "Kernel": (None, set())}
-    completed = set()
+    if include_manager:
+        expected["Manager"] = ("manager-debug", {"app-debug.apk"})
+    completed = {}
     deadline = time.monotonic() + 600
-    while set(expected) != completed:
+    while set(expected) != set(completed):
         runs = api(f"repos/{repo}/actions/runs?head_sha={sha}&per_page=30")["workflow_runs"]
         for name, (artifact_name, filenames) in expected.items():
             if name in completed:
                 continue
             candidates = [r for r in runs if r["name"] == name and r["event"] == "push"
-                          and r["head_branch"] == "main" and r["head_sha"] == sha]
+                          and r["head_branch"] == "main" and r["head_sha"] == sha
+                          and r["path"] == f".github/workflows/build-{'kernel-test' if name == 'Kernel' else name.lower()}.yml"]
             if not candidates:
                 continue
             run = max(candidates, key=lambda r: (r["run_number"], r["run_attempt"]))
@@ -55,15 +58,17 @@ def collect(repo, sha, workspace):
                     if set(z.namelist()) != filenames or len(z.namelist()) != len(filenames):
                         raise RuntimeError("Unexpected files in CI artifact")
                     for entry in z.infolist():
-                        if entry.file_size > 16 * 1024 * 1024:
+                        limit = (128 if name == "Manager" else 16) * 1024 * 1024
+                        if entry.file_size > limit:
                             raise RuntimeError("CI binary exceeds limit")
                         (target / entry.filename).write_bytes(z.read(entry))
-            completed.add(name)
+            completed[name] = {"id": run["id"], "url": run["html_url"], "sha": sha}
             print(f"Verified {name} at {sha}", flush=True)
-        if set(expected) != completed:
+        if set(expected) != set(completed):
             if time.monotonic() >= deadline:
                 raise RuntimeError("Timed out waiting for same-commit CI outputs")
             time.sleep(10)
+    return completed
 
 if __name__ == "__main__":
     import tomllib

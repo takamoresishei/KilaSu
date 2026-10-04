@@ -92,14 +92,21 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          disable-animations: true
+          disable-animations: false
           script: |
             cd manager && ./gradlew --no-daemon -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true connectedDebugAndroidTest
-            adb pull /sdcard/Android/data/io.github.kilasu.manager/files/manager-home.png manager-home.png
+            adb shell am start -S -W -n io.github.kilasu.manager/.MainActivity
+            adb shell sleep 3
+            adb shell uiautomator dump /sdcard/KilaSU-ui.xml
+            adb pull /sdcard/KilaSU-ui.xml manager-ui.xml
+            python3 -c 'import xml.etree.ElementTree as E; texts={n.get("text") for n in E.parse("manager-ui.xml").iter()}; assert {"Not Installed", "Home"} <= texts, texts'
+            adb exec-out screencap -p > manager-home.png
       - uses: actions/upload-artifact@v4
         with:
           name: manager-screenshot
-          path: manager-home.png
+          path: |
+            manager-home.png
+            manager-ui.xml
   development-packages:
     needs: [build, screenshot]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !inputs.release
