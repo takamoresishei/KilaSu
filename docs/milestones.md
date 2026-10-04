@@ -8,7 +8,7 @@
 | 4 Version client | Rust/native version reads | Real device ioctl still required |
 | 5 Daemon | Root init service, socket/kernel integration | Host parser/protocol tests; runtime pending |
 | 6 Manager detection | JNI version/features and actual RPC state | Android build/emulator CI; no synthetic statuses |
-| 7 Authorization | UID/profile plus live identity/task tickets | Must test allow/once/revoke on actual GKI |
+| 7 Authorization | UID/profile plus live identity/task tickets | KUnit allowlist source/compile check; runtime allow/once/revoke pending |
 | 8 Lifecycle | Early, post-fs-data, service, boot-completed | ROM init ordering/device run required |
 | 9 Modules | Safe ZIP, staged update, scripts, file mounts | ZIP tests; enforcing mounts/reboot pending |
 | 10 Boot patcher | Shared C parser/repack, JNI/export | Host repack/preservation/rejection tests passed |

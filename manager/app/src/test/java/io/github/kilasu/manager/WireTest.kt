@@ -9,4 +9,8 @@ class WireTest {
  @Test fun rejectsLargeFrame() { try { Wire.receive(ByteArrayInputStream(byteArrayOf(-1,-1,-1,-1))); fail("accepted oversized frame") } catch (_: IllegalArgumentException) { } }
  @Test fun truncatedHeader() { try { Wire.receive(ByteArrayInputStream(byteArrayOf(1,0))); fail("accepted truncated header") } catch (_: IllegalStateException) { } }
  @Test fun payloadProperties() { assertEquals("a", BootPatcher.parseProperties("device=a\napi=1")["device"]); try { BootPatcher.parseProperties("api=1\napi=2"); fail("accepted duplicate key") } catch (_: IllegalArgumentException) { } }
+ @Test fun boundedPropertyStream() {
+  assertArrayEquals(byteArrayOf(1, 2, 3), BootPatcher.readBounded(ByteArrayInputStream(byteArrayOf(1, 2, 3)), 3))
+  try { BootPatcher.readBounded(ByteArrayInputStream(byteArrayOf(1, 2, 3, 4)), 3); fail("accepted oversized property stream") } catch (_: IllegalArgumentException) { }
+ }
 }

@@ -39,3 +39,11 @@ gate rejects mismatched or unvalidated stable tags. Successful signed releases
 publish APK aliases, Installer/Uninstaller ZIPs and checksums.txt with release
 notes. No signing secret was supplied with the project request, so none is
 fabricated or committed.
+# Kernel authorization tests
+
+On a development kernel enable `CONFIG_KUNIT=y`, `CONFIG_COMPILE_TEST=y` and
+`CONFIG_KILASU_KUNIT_TEST=y`. The `kilasu-allowlist` KUnit suite exercises the
+real allowlist functions: default denial, allow/revoke, once exhaustion and
+invalid profiles. It does not grant credentials. The ACK CI compiles the suite;
+running it requires booting that test kernel and inspecting its KTAP output.
+Keep `CONFIG_KILASU_KUNIT_TEST=n` in distributed device kernels.

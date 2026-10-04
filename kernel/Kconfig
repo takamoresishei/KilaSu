@@ -15,3 +15,11 @@ config KILASU_SELINUX_INTERNAL
  help
    Use the in-tree SELinux credential blob accessor. Never enable for a
    loadable smoke-test module. Missing kilasu policy denies root requests.
+
+config KILASU_KUNIT_TEST
+ bool "KilaSU allowlist KUnit tests (development only)"
+ depends on KILASU && KUNIT && COMPILE_TEST
+ default n
+ help
+   Tests default deny, allow/revoke, once exhaustion and invalid profiles.
+   Runs only on explicitly configured test kernels; never enable in releases.

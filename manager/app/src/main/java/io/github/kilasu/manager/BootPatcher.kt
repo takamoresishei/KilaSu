@@ -8,6 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
+import java.io.InputStream
+import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -38,7 +40,7 @@ class BootPatcher(private val context: Context) {
     while (true) { val entry = zip.nextEntry ?: break; count++; require(count <= 2 && names.add(entry.name)) { "Duplicate or excessive payload entries" }
      when (entry.name) {
       "Image" -> { var length = 0L; image.outputStream().use { out -> val b = ByteArray(65536); while (true) { val n = zip.read(b); if (n < 0) break; length += n; require(length <= 128L * 1024 * 1024); out.write(b, 0, n) } }; hasImage = length > 0 }
-      "payload.prop" -> { val b = zip.readNBytes(65537); require(b.size <= 65536); properties = parseProperties(b.toString(Charsets.UTF_8)) }
+      "payload.prop" -> { properties = parseProperties(readBounded(zip, 65536).toString(Charsets.UTF_8)) }
       else -> error("Payload only accepts Image and payload.prop")
      }; zip.closeEntry()
     }
@@ -67,6 +69,16 @@ class BootPatcher(private val context: Context) {
   } }
  }
  companion object {
+  fun readBounded(input: InputStream, limit: Int): ByteArray {
+   require(limit in 1..65536)
+   val output = ByteArrayOutputStream(); val buffer = ByteArray(4096)
+   while (true) {
+    val n = input.read(buffer); if (n < 0) break
+    require(n > 0 && output.size() + n <= limit) { "Payload properties exceed size limit" }
+    output.write(buffer, 0, n)
+   }
+   return output.toByteArray()
+  }
   fun parseProperties(text: String): Map<String, String> {
    val result = mutableMapOf<String, String>()
    for (line in text.lineSequence().filter { it.isNotBlank() && !it.startsWith('#') }) {
