@@ -116,6 +116,12 @@ device validation report and a persistent release signing key. It builds APK,
 Installer, Uninstaller and checksums and publishes GitHub Release notes.
 [Build instructions and signing](docs/building.md).
 
+For source-integrated test devices, successful main-branch CI also provides
+`kilasu-development-packages`: actual APKs, recovery Installer/Uninstaller ZIPs
+and checksums built at the same commit. These use the CI debug signing key and
+are explicitly labelled development; use the exact included APK to match the
+recovery identity pin. They do not establish device compatibility.
+
 ## Documentation
 
 [Architecture](docs/architecture.md) · [UAPI](docs/uapi.md) · [Daemon](docs/daemon.md) ·

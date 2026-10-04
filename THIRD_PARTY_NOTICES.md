@@ -16,7 +16,9 @@ need for explicit policy, attribution and lifecycle integration.
 | Rust standard library | Daemon runtime | Rust project licenses, MIT / Apache-2.0 |
 | zlib | Gzip and raw DEFLATE validation | zlib license; Jean-loup Gailly, Mark Adler and contributors |
 
-Apache-2.0 text is included at `LICENSES/Apache-2.0.txt`. Dependency artifacts
+License texts are included in `LICENSES/`, embedded in Manager assets, and
+carried in the recovery archives. Rust's MIT notice and the zlib notice are
+preserved alongside Apache-2.0. Dependency artifacts
 retain their embedded notices. SHA-256 uses the public FIPS 180-4 algorithm; its
 implementation here is original. Android boot layouts follow the published
 [AOSP header specification](https://source.android.com/docs/core/architecture/bootloader/boot-image-header).

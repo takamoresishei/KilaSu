@@ -32,7 +32,15 @@ android {
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = "17" }
  externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
+ sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/notices"))
 }
+val copyNotices by tasks.registering(Copy::class) {
+ from(rootProject.file("../LICENSE"))
+ from(rootProject.file("../THIRD_PARTY_NOTICES.md"))
+ from(rootProject.file("../LICENSES"))
+ into(layout.buildDirectory.dir("generated/notices/licenses"))
+}
+tasks.named("preBuild").configure { dependsOn(copyNotices) }
 dependencies {
  implementation(platform("androidx.compose:compose-bom:2025.05.01"))
  implementation("androidx.activity:activity-compose:1.10.1")

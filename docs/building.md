@@ -48,3 +48,13 @@ real allowlist functions: default denial, allow/revoke, once exhaustion and
 invalid profiles. It does not grant credentials. The ACK CI compiles the suite;
 running it requires booting that test kernel and inspecting its KTAP output.
 Keep `CONFIG_KILASU_KUNIT_TEST=n` in distributed device kernels.
+
+## Development packages
+
+A successful main-branch Manager workflow also collects the daemon, CLI and
+recovery validator from successful workflows at exactly the same commit. It
+requires the ACK matrix to pass and uploads `kilasu-development-packages` with
+APK aliases, Installer/Uninstaller ZIPs, checksums and a DEVELOPMENT notice.
+These APKs use the CI debug key. The recovery package pins the exact signed APK
+from that build; never mix a locally rebuilt APK with a different package pin.
+The output is for source-integrated test devices and is not a stable release.

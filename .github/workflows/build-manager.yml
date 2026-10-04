@@ -99,3 +99,24 @@ jobs:
         with:
           name: manager-screenshot
           path: manager-home.png
+  development-packages:
+    needs: [build, screenshot]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !inputs.release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: manager-debug
+          path: artifacts/manager
+      - name: Verify same-commit builds and package development outputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/ci_package.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kilasu-development-packages
+          path: dist/

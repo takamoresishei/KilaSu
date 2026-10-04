@@ -25,7 +25,9 @@ val LocalIntensity = staticCompositionLocalOf { 0.7f }
  val colors = if (dynamic) { if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context) }
  else if (dark) darkColorScheme(primary = Color(0xFFB6D1DE), background = Color(0xFF0C1017), surface = Color(0xFF151D28))
  else lightColorScheme(primary = Color(0xFF476776), background = Color(0xFFF0F3F7), surface = Color(0xFFE5ECF1))
- MaterialTheme(colorScheme = colors, content = content)
+ MaterialTheme(colorScheme = colors) {
+  CompositionLocalProvider(LocalContentColor provides colors.onBackground, content = content)
+ }
 }
 @Composable fun GlassBackground(haze: HazeState, animation: Boolean) {
  val transition = rememberInfiniteTransition(label = "ambient")

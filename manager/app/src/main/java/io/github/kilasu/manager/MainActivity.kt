@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
@@ -42,6 +43,11 @@ class MainActivity : ComponentActivity() {
  var intensity by remember { mutableFloatStateOf(prefs.getFloat("glass", .7f)) }
  var animation by remember { mutableStateOf(prefs.getBoolean("animation", true)) }
  var prompts by remember { mutableStateOf(prefs.getBoolean("prompts", true)) }
+ LaunchedEffect(dark) {
+  val style = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+   else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+  (context as? ComponentActivity)?.enableEdgeToEdge(style, style)
+ }
  var opened by rememberSaveable { mutableStateOf(false) }
  var tab by rememberSaveable { mutableStateOf("Home") }
  var backend by remember { mutableStateOf(Backend()) }
@@ -77,7 +83,7 @@ class MainActivity : ComponentActivity() {
    Box(Modifier.fillMaxSize()) {
     GlassBackground(haze, animation)
     AnimatedVisibility(opened, enter = fadeIn(tween(350)) + scaleIn(initialScale = .98f), exit = fadeOut()) {
-     Scaffold(containerColor = Color.Transparent, snackbarHost = { SnackbarHost(snackbar) }, bottomBar = {
+     Scaffold(containerColor = Color.Transparent, contentColor = MaterialTheme.colorScheme.onBackground, snackbarHost = { SnackbarHost(snackbar) }, bottomBar = {
       GlassPanel(Modifier.padding(horizontal = 14.dp).navigationBarsPadding().padding(bottom = 8.dp)) {
        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         val icons = listOf(Icons.Outlined.Home, Icons.Outlined.Shield, Icons.Outlined.Extension, Icons.Outlined.Settings)

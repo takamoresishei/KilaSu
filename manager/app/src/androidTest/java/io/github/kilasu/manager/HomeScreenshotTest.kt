@@ -13,7 +13,11 @@ class HomeScreenshotTest {
  @Test fun realDisconnectedState() {
   compose.waitUntil(15000) { compose.onAllNodesWithText("Not Installed").fetchSemanticsNodes().isNotEmpty() }
   compose.onNodeWithText("Not Installed").assertIsDisplayed()
+  // Complete the glass reveal before capturing the compositor's real pixels.
+  compose.mainClock.advanceTimeBy(1500)
+  compose.waitForIdle()
   val instrumentation = InstrumentationRegistry.getInstrumentation()
+  UiDevice.getInstance(instrumentation).waitForIdle(1000)
   assertTrue("Screenshot capture failed", UiDevice.getInstance(instrumentation).takeScreenshot(File(instrumentation.targetContext.getExternalFilesDir(null), "manager-home.png")))
  }
 }

@@ -5,6 +5,7 @@ import argparse
 import hashlib
 from pathlib import Path
 import re
+import struct
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,14 @@ def digest(file):
             h.update(block)
     return h.hexdigest()
 
+def check_arm64_elf(path):
+    with path.open("rb") as stream:
+        header = stream.read(64)
+    if (len(header) != 64 or header[:6] != b"\x7fELF\x02\x01"
+            or struct.unpack_from("<H", header, 18)[0] != 183
+            or struct.unpack_from("<H", header, 16)[0] not in (2, 3)):
+        raise ValueError(f"{path.name} must be an arm64 little-endian ELF executable")
+
 def package(version, apk, daemon_dir, validator, output):
     if not re.fullmatch(r"v\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?", version):
         raise ValueError("version must be vX.Y.Z with an optional prerelease suffix")
@@ -22,13 +31,21 @@ def package(version, apk, daemon_dir, validator, output):
     files = [apk, daemon_dir / "kilasd", daemon_dir / "kila", validator]
     if any(not p.is_file() or p.stat().st_size == 0 for p in files):
         raise ValueError("Manager, daemon, CLI and static arm64 validator must exist")
+    for binary in files[1:]:
+        check_arm64_elf(binary)
+    with zipfile.ZipFile(apk) as archive:
+        if "AndroidManifest.xml" not in archive.namelist() or "classes.dex" not in archive.namelist():
+            raise ValueError("Manager must be a built APK")
     output.mkdir(parents=True, exist_ok=True)
     entries = {
         "META-INF/com/google/android/update-binary": (ROOT / "recovery/common/update-binary", 0o755),
         "lib/common.sh": (ROOT / "recovery/common/common.sh", 0o644),
         "bin/kila-boot": (validator, 0o755),
         "LICENSE": (ROOT / "LICENSE", 0o644),
+        "THIRD_PARTY_NOTICES.md": (ROOT / "THIRD_PARTY_NOTICES.md", 0o644),
     }
+    for notice in (ROOT / "LICENSES").glob("*.txt"):
+        entries[f"LICENSES/{notice.name}"] = (notice, 0o644)
     for action, label in [("install", "Installer"), ("uninstall", "Uninstaller")]:
         payload = dict(entries)
         payload["lib/action.sh"] = (ROOT / f"recovery/{'installer/install' if action == 'install' else 'uninstaller/uninstall'}.sh", 0o644)
